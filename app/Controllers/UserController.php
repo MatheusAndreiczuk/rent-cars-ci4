@@ -53,20 +53,10 @@ class UserController extends ResourceController
 
     public function getAllUsers()
     {
-        $response = [];
         $users = $this->userModel->findAll();
-        if ($users) {
-            $response = [
-                'data' => $users
-            ];
-        } else {
-            $response = [
-                'message' => [
-                    'error' => 'Nenhum usuário encontrado.'
-                ]
-            ];
-        }
-
+        $response = [
+            'data' => $users
+        ];
         return $this->respond($response);
     }
 
