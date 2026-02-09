@@ -6,95 +6,63 @@ use CodeIgniter\RESTful\ResourceController;
 
 class CategoryController extends ResourceController
 {
-    private $categoryModel;
+    protected $modelName = 'App\Models\CategoryModel';
+    protected $format    = 'json';
 
-    public function __construct()
+    public function index()
     {
-        $this->categoryModel = new \App\Models\CategoryModel();
+        return $this->respond($this->model->findAll());
+    }
+
+    public function show($id = null)
+    {
+        $category = $this->model->find($id);
+
+        if (!$category) {
+            return $this->failNotFound('Categoria não encontrada.');
+        }
+
+        return $this->respond($category);
     }
 
     public function create()
     {
-        $response = [];
-        $newCategoryData = $this->request->getJSON();
-        if ($this->categoryModel->insert($newCategoryData)) {
-            $response = [
-                'message' => [
-                    'success' => 'Categoria criada com sucesso.'
-                ]
-            ];
-        } else {
-            $response = [
-                'error_messages' => $this->categoryModel->errors()
-            ];
+        $data = $this->request->getJSON();
+
+        if ($this->model->insert($data)) {
+            return $this->respondCreated([
+                'message' => 'Categoria criada com sucesso.'
+            ]);
         }
-        return $this->respond($response);
+
+        return $this->failValidationErrors($this->model->errors());
     }
 
     public function update($id = null)
     {
-        $response = [];
-        $newCategoryData = $this->request->getJSON();
-        
-        $this->categoryModel->setValidationRule('nome', 'required|is_unique[category.nome,id,' . $id . ']|min_length[3]');
-        
-        if ($this->categoryModel->update($id, $newCategoryData)) {
-            $response = [
-                'message' => [
-                    'success' => 'Categoria atualizada com sucesso.'
-                ]
-            ];
-        } else {
-            $response = [
-                'error_messages' => $this->categoryModel->errors()
-            ];
+        if (!$this->model->find($id)) {
+            return $this->failNotFound('Categoria não encontrada.');
         }
-        return $this->respond($response);
-    }
 
-    public function getCategory($id = null)
-    {
-        $response = [];
-        $category = $this->categoryModel->find($id);
-        if ($category) {
-            $response = [
-                'data' => $category
-            ];
-        } else {
-            $response = [
-                'message' => [
-                    'error' => 'Categoria não encontrada.'
-                ]
-            ];
+        $data = $this->request->getJSON();
+
+        if ($this->model->updateCategory($id, $data)) {
+            return $this->respond(['message' => 'Categoria atualizada com sucesso.']);
         }
-        return $this->respond($response);
-    }
 
-    public function getAllCategories()
-    {
-        $categories = $this->categoryModel->findAll();
-        $response = [
-            'data' => $categories
-        ];
-        return $this->respond($response);
+        return $this->failValidationErrors($this->model->errors());
     }
 
     public function delete($id = null)
     {
-        $response = [];
-        if ($this->categoryModel->delete($id)) {
-            $response = [
-                'message' => [
-                    'success' => 'Categoria deletada com sucesso.'
-                ]
-            ];
-        } else {
-            $response = [
-                'message' => [
-                    'error' => 'Categoria não encontrada.'
-                ]
-            ];
+        if (!$this->model->find($id)) {
+            return $this->failNotFound('Categoria não encontrada.');
         }
-        return $this->respond($response);
+
+        if ($this->model->delete($id)) {
+            return $this->respondDeleted(['message' => 'Categoria deletada com sucesso.']);
+        }
+
+        return $this->failServerError('Erro ao deletar categoria.');
     }
 }
