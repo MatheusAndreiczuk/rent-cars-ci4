@@ -49,7 +49,13 @@ class VehicleController extends ResourceController
 
     public function getVehicle($id)
     {
-        $vehicle = $this->vehicleModel->find($id);
+        $vehicle = $this->vehicleModel->select('vehicles.*')
+            ->select('category.nome as categoria_nome')
+            ->select('category.valor_diario, category.valor_semanal, category.valor_mensal')
+            ->join('category', 'category.id = vehicles.id_categoria')
+            ->where('vehicles.id', $id) 
+            ->first(); 
+    
         $response = [];
         if ($vehicle) {
             $response = [
@@ -68,11 +74,15 @@ class VehicleController extends ResourceController
 
     public function getAllVehicles()
     {
-        $vehicles = $this->vehicleModel->findAll();
-        $response = [
-            'data' => $vehicles
-        ];
-        return $this->respond($response);
+        $response = $this->vehicleModel->select('vehicles.*')
+            ->select('category.nome as categoria_nome')
+            ->select('category.valor_diario')
+            ->select('category.valor_semanal')
+            ->select('category.valor_mensal')
+            ->join('category', 'category.id = vehicles.id_categoria')
+            ->findAll();
+
+        return $this->respond(['data' => $response]);
     }
 
     public function update($id = null)
