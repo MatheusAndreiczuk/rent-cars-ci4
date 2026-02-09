@@ -6,101 +6,63 @@ use CodeIgniter\RESTful\ResourceController;
 
 class UserController extends ResourceController
 {
-    private $userModel;
+    protected $modelName = 'App\Models\UserModel';
+    protected $format    = 'json';
 
-    public function __construct()
+    public function index()
     {
-        $this->userModel = new \App\Models\UserModel();
+        return $this->respond($this->model->findAll());
+    }
+
+    public function show($id = null)
+    {
+        $user = $this->model->find($id);
+        if (!$user) {
+            return $this->failNotFound('Usuário não encontrado.');
+        }
+
+        return $this->respond($user);
     }
 
     public function create()
     {
-        $response = [];
-        $newUserData = $this->request->getJSON();
-        if ($this->userModel->insert($newUserData)) {
-            $response = [
-                'message' => [
-                    'success' => 'Usuário criado com sucesso.'
-                ]
-            ];
-        } else {
-            $response = [
-                'error_messages' => $this->userModel->errors()
-            ];
+        $data = $this->request->getJSON();
+
+        if ($this->model->insert($data)) {
+            return $this->respondCreated([
+                'id'      => $this->model->getInsertID(),
+                'message' => 'Usuário criado com sucesso.'
+            ]);
         }
 
-        return $this->respond($response);
-    }
-
-    public function getUser($id)
-    {
-        $user = $this->userModel->find($id);
-        $response = [];
-        if ($user) {
-            $response = [
-                'data' => $user
-            ];
-        } else {
-            $response = [
-                'message' => [
-                    'error' => 'Usuário não encontrado.'
-                ]
-            ];
-        }
-
-        return $this->respond($response);
-    }
-
-    public function getAllUsers()
-    {
-        $users = $this->userModel->findAll();
-        $response = [
-            'data' => $users
-        ];
-        return $this->respond($response);
+        return $this->failValidationErrors($this->model->errors());
     }
 
     public function update($id = null)
     {
-        $response = [];
-        $userData = $this->request->getJSON();
-
-        $this->userModel->setValidationRule('cpf', 'required|is_unique[users.cpf,id,' . $id . ']|exact_length[11]');
-        $this->userModel->setValidationRule('email', 'required|valid_email|is_unique[users.email,id,' . $id . ']');
-        $this->userModel->setValidationRule('cnh_numero', 'required|is_unique[users.cnh_numero,id,' . $id . ']');
-
-        if ($this->userModel->update($id, $userData)) {
-            $response = [
-                'message' => [
-                    'success' => 'Usuário atualizado com sucesso.'
-                ]
-            ];
-        } else {
-            $response = [
-                'error_messages' => $this->userModel->errors()
-            ];
+        if (!$this->model->find($id)) {
+            return $this->failNotFound('Usuário não encontrado.');
         }
 
-        return $this->respond($response);
+        $data = $this->request->getJSON();
+
+        if ($this->model->updateUser($id, $data)) {
+            return $this->respond(['message' => 'Usuário atualizado com sucesso.']);
+        }
+
+        return $this->failValidationErrors($this->model->errors());
     }
 
     public function delete($id = null)
     {
-        $response = [];
-        if ($this->userModel->delete($id)) {
-            $response = [
-                'message' => [
-                    'success' => 'Usuário deletado com sucesso.'
-                ]
-            ];
-        } else {
-            $response = [
-                'message' => [
-                    'error' => 'Erro ao deletar usuário.'
-                ]
-            ];
+        if (!$this->model->find($id)) {
+            return $this->failNotFound('Usuário não encontrado.');
         }
 
-        return $this->respond($response);
+        if ($this->model->delete($id)) {
+            return $this->respondDeleted(['message' => 'Usuário removido com sucesso.']);
+        }
+
+        return $this->failServerError('Erro ao deletar usuário.');
     }
 }
