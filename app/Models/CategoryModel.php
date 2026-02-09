@@ -27,4 +27,14 @@ class CategoryModel extends Model
         'valor_semanal' => 'required|decimal',
         'valor_mensal' => 'required|decimal',
     ];
+
+    public function updateCategory($id, $data)
+    {
+        $rules = $this->validationRules;
+        $rules['nome'] = "required|min_length[3]|is_unique[category.nome,id,{$id}]";
+        
+        $this->setValidationRules($rules);
+        
+        return $this->update($id, $data);
+    }
 }
