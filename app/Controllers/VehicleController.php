@@ -6,137 +6,64 @@ use CodeIgniter\RESTful\ResourceController;
 
 class VehicleController extends ResourceController
 {
-    private $vehicleModel;
-    private $categoryModel;
-    public function __construct()
+    protected $modelName = 'App\Models\VehicleModel';
+    protected $format    = 'json';
+
+    public function index()
     {
-        $this->vehicleModel = new \App\Models\VehicleModel();
-        $this->categoryModel = new \App\Models\CategoryModel();
+        $data = $this->model->getVehicle();
+        return $this->respond($data);
+    }
+
+    public function show($id = null)
+    {
+        $vehicle = $this->model->getVehicle($id);
+
+        if (!$vehicle) {
+            return $this->failNotFound('Veículo não encontrado.');
+        }
+
+        return $this->respond($vehicle);
     }
 
     public function create()
     {
-        $response = [];
-        $newVehicleData = (array) $this->request->getJSON();
+        $data = $this->request->getJSON();
 
-        if (isset($newVehicleData['categoria'])) {
-            $categoria = $this->categoryModel->where('nome', $newVehicleData['categoria'])->first();
-            if ($categoria && isset($categoria['id'])) {
-                $newVehicleData['id_categoria'] = $categoria['id'];
-            } else {
-                $response = [
-                    'error_messages' => ['Categoria não encontrada.']
-                ];
-                return $this->respond($response, 400);
-            }
-            unset($newVehicleData['categoria']);
+        if ($this->model->insert($data)) {
+            return $this->respondCreated([
+                'message' => 'Veículo criado com sucesso.'
+            ]);
         }
 
-        if ($this->vehicleModel->insert($newVehicleData)) {
-            $response = [
-                'message' => [
-                    'success' => 'Veículo criado com sucesso.'
-                ]
-            ];
-        } else {
-            $response = [
-                'error_messages' => $this->vehicleModel->errors()
-            ];
-        }
-
-        return $this->respond($response);
-    }
-
-    public function getVehicle($id)
-    {
-        $vehicle = $this->vehicleModel->select('vehicles.*')
-            ->select('category.nome as categoria_nome')
-            ->select('category.valor_diario, category.valor_semanal, category.valor_mensal')
-            ->join('category', 'category.id = vehicles.id_categoria')
-            ->where('vehicles.id', $id) 
-            ->first(); 
-    
-        $response = [];
-        if ($vehicle) {
-            $response = [
-                'data' => $vehicle
-            ];
-        } else {
-            $response = [
-                'message' => [
-                    'error' => 'Veículo não encontrado.'
-                ]
-            ];
-        }
-
-        return $this->respond($response);
-    }
-
-    public function getAllVehicles()
-    {
-        $response = $this->vehicleModel->select('vehicles.*')
-            ->select('category.nome as categoria_nome')
-            ->select('category.valor_diario')
-            ->select('category.valor_semanal')
-            ->select('category.valor_mensal')
-            ->join('category', 'category.id = vehicles.id_categoria')
-            ->findAll();
-
-        return $this->respond(['data' => $response]);
+        return $this->failValidationErrors($this->model->errors());
     }
 
     public function update($id = null)
     {
-        $response = [];
-        $vehicleData = (array) $this->request->getJSON();
-
-        if (isset($vehicleData['categoria'])) {
-            $categoria = $this->categoryModel->where('nome', $vehicleData['categoria'])->first();
-            if ($categoria && isset($categoria['id'])) {
-                $vehicleData['id_categoria'] = $categoria['id'];
-            } else {
-                $response = [
-                    'error_messages' => ['Categoria não encontrada.']
-                ];
-                return $this->respond($response, 400);
-            }
-            unset($vehicleData['categoria']);
+        if (!$this->model->find($id)) {
+            return $this->failNotFound('Veículo não encontrado.');
         }
 
-        $this->vehicleModel->setValidationRule('placa', 'required|is_unique[vehicles.placa,id,' . $id . ']|exact_length[7]');
+        $data = $this->request->getJSON();
 
-        if ($this->vehicleModel->update($id, $vehicleData)) {
-            $response = [
-                'message' => [
-                    'success' => 'Veículo atualizado com sucesso.'
-                ]
-            ];
-        } else {
-            $response = [
-                'error_messages' => $this->vehicleModel->errors()
-            ];
+        if ($this->model->updateVehicle($id, $data)) {
+            return $this->respond(['message' => 'Veículo atualizado com sucesso.']);
         }
 
-        return $this->respond($response);
+        return $this->failValidationErrors($this->model->errors());
     }
 
     public function delete($id = null)
     {
-        $response = [];
-        if ($this->vehicleModel->delete($id)) {
-            $response = [
-                'message' => [
-                    'success' => 'Veículo deletado com sucesso.'
-                ]
-            ];
-        } else {
-            $response = [
-                'message' => [
-                    'error' => 'Erro ao deletar veículo.'
-                ]
-            ];
+        if (!$this->model->find($id)) {
+            return $this->failNotFound('Veículo não encontrado.');
         }
 
-        return $this->respond($response);
+        if ($this->model->delete($id)) {
+            return $this->respondDeleted(['message' => 'Veículo deletado com sucesso.']);
+        }
+
+        return $this->failServerError('Erro ao deletar veículo.');
     }
 }
