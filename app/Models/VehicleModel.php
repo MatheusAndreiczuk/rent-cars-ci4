@@ -6,10 +6,12 @@ use CodeIgniter\Model;
 
 class VehicleModel extends Model {
     protected $useTimestamps = true;
+    protected $useSoftDeletes   = true;
     protected $table = 'vehicles';
     protected $primaryKey = 'id';
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
+    protected $deletedField     = 'deleted_at';
     protected $allowedFields = [
         'marca',
         'modelo',
@@ -22,7 +24,8 @@ class VehicleModel extends Model {
         'combustivel',
         'status',
         'created_at',
-        'updated_at'
+        'updated_at',
+        'deleted_at'
     ];
     protected $validationRules = [
         'marca' => 'required|min_length[2]',
@@ -36,4 +39,28 @@ class VehicleModel extends Model {
         'status' => 'required|in_list[disponivel,alugado,manutencao]',
         'id_categoria' => 'required|is_natural_no_zero'
     ];
+
+    public function getVehicle($id = null)
+    {
+        $builder = $this->select('vehicles.*')
+             ->select('category.nome as categoria_nome')
+             ->select('category.valor_diario, category.valor_semanal, category.valor_mensal')
+             ->join('category', 'category.id = vehicles.id_categoria');
+
+        if ($id) {
+            return $builder->find($id);
+        }
+
+        return $builder->findAll();
+    }
+
+    public function updateVehicle($id, $data)
+    {
+        $rules = $this->validationRules;
+        $rules['placa'] = "required|exact_length[7]|is_unique[vehicles.placa,id,{$id}]";
+        
+        $this->setValidationRules($rules);
+        
+        return $this->update($id, $data);
+    }
 }
