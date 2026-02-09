@@ -10,6 +10,8 @@ class CategoryModel extends Model
     protected $primaryKey = 'id';
     protected $createdField = 'created_at';
     protected $updatedField = 'updated_at';
+    protected $deletedField = 'deleted_at';
+    protected $useSoftDeletes = true;
     protected $useTimestamps = true;
     protected $allowedFields = [
         'id',
@@ -18,7 +20,8 @@ class CategoryModel extends Model
         'valor_semanal',
         'valor_mensal',
         'created_at',
-        'updated_at'
+        'updated_at',
+        'deleted_at'
     ];
 
     protected $validationRules = [
