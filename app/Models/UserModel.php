@@ -38,4 +38,16 @@ class UserModel extends Model {
         'cep' => 'required|exact_length[8]',
         'numero' => 'required'
     ];
+
+    public function updateUser($id, $data)
+    {
+        $rules = $this->validationRules;
+        $rules['cpf']        = "required|exact_length[11]|is_unique[users.cpf,id,{$id}]";
+        $rules['email']      = "required|valid_email|is_unique[users.email,id,{$id}]";
+        $rules['cnh_numero'] = "required|is_unique[users.cnh_numero,id,{$id}]";
+
+        $this->setValidationRules($rules);
+
+        return $this->update($id, $data);
+    }
 }
