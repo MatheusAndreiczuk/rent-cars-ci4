@@ -18,3 +18,9 @@ $routes->get('/categories', 'CategoryController::getAllCategories');
 $routes->put('/categories/(:num)', 'CategoryController::update/$1');
 $routes->delete('/categories/(:num)', 'CategoryController::delete/$1');
 
+$routes->post('/vehicles', 'VehicleController::create');
+$routes->get('/vehicles/(:num)', 'VehicleController::getVehicle/$1');
+$routes->get('/vehicles', 'VehicleController::getAllVehicles');
+$routes->put('/vehicles/(:num)', 'VehicleController::update/$1');
+$routes->delete('/vehicles/(:num)', 'VehicleController::delete/$1');
+
