@@ -42,9 +42,7 @@ class VehicleModel extends Model {
 
     public function getVehicle($id = null)
     {
-        $builder = $this->select('vehicles.*')
-             ->select('category.nome as categoria_nome')
-             ->select('category.valor_diario, category.valor_semanal, category.valor_mensal')
+        $builder = $this->select('vehicles.*, category.nome as categoria_nome, category.valor_diario, category.valor_semanal, category.valor_mensal')
              ->join('category', 'category.id = vehicles.id_categoria');
 
         if ($id) {
