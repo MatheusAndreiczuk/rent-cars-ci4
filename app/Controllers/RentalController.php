@@ -147,15 +147,24 @@ class RentalController extends ResourceController
         // calcular multa
         $devolucao_prevista = Time::parse($aluguel['data_devolucao_prevista']);
         $devolucao_real = Time::now();
-        $diff = $devolucao_prevista->difference($devolucao_real);
-        $dias_atraso = $diff->getDays();
 
         $valor_total = $aluguel['valor_previsto'];
 
-        if ($dias_atraso > 0 && $devolucao_real->isAfter($devolucao_prevista)) {
-            // diária dobrada em atrasos
-            $multa = $dias_atraso * ($aluguel['valor_diario_praticado'] * 2);
-            $valor_total += $multa;
+        if ($devolucao_real->isAfter($devolucao_prevista)) {
+            $diff = $devolucao_prevista->difference($devolucao_real);
+
+            $minutos_atraso = $diff->getMinutes();
+            $dias_atraso = $diff->getDays();
+
+            if ($dias_atraso == 0 && $minutos_atraso > 15) { // tolerância de 15min
+                $dias_atraso = 1;
+            }
+
+            if ($dias_atraso > 0) {
+                // diária dobrada em atrasos
+                $multa = $dias_atraso * ($aluguel['valor_diario_praticado'] * 2);
+                $valor_total += $multa;
+            }
         }
 
         $db = \Config\Database::connect();
