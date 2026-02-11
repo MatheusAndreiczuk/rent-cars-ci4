@@ -6,6 +6,11 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 $routes->get('/', 'Home::index');
+$routes->post('login', 'AuthController::login');
+$routes->post('cadastro', 'UserController::create');
+
+$routes->get('login', 'WebController::login');
+$routes->get('cadastro', 'WebController::cadastro');    
 
 $routes->resource('users', ['controller' => 'UserController']);
 
