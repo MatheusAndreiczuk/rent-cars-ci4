@@ -12,4 +12,7 @@ class WebController extends BaseController
     {
         return view('cadastro');
     }
+    public function home(){
+        return view('home');
+    }
 }

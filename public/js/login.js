@@ -27,7 +27,7 @@ $(document).ready(function() {
                     timer: 1500,
                     heightAuto: false
                 }).then(() => {
-                    window.location.href = '/catalogo'; 
+                    window.location.href = '/home'; 
                 });
             },
             error: function(xhr) {

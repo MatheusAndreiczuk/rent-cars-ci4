@@ -5,12 +5,14 @@ use CodeIgniter\Router\RouteCollection;
 /**
  * @var RouteCollection $routes
  */
+//rotas públicas
 $routes->get('/', 'Home::index');
 $routes->post('login', 'AuthController::login');
 $routes->post('cadastro', 'UserController::create');
-
 $routes->get('login', 'WebController::login');
 $routes->get('cadastro', 'WebController::cadastro');    
+$routes->get('home', 'WebController::home');
+
 
 $routes->resource('users', ['controller' => 'UserController']);
 
