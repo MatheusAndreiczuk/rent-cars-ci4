@@ -272,7 +272,7 @@ function carregarDadosVeiculos() {
 }
 
 function getBotoesAcaoVeiculo(veiculo) {
-    if (veiculo.status === 'disponivel') {
+    if (veiculo.status === 'disponivel' || veiculo.status === 'manutencao') {
         return `
             <button class="btn btn-sm btn-primary" onclick="editarVeiculo(${veiculo.id})">
                 <i class="bi bi-pencil"></i>
@@ -548,12 +548,608 @@ window.finalizarLocacao = function (id, kmInicial) {
     });
 };
 
-window.editarVeiculo = (id) => Swal.fire('Teste de modal', `Editar veículo #${id}`, 'info');
-window.excluirVeiculo = (id) => Swal.fire('Teste de modal', `Excluir veículo #${id}`, 'info');
-window.editarCategoria = (id) => Swal.fire('Teste de modal', `Editar categoria ${id}`, 'info');
-window.excluirCategoria = (id) => Swal.fire('Teste de modal', `Excluir categoria ${id}`, 'info');
-window.verUsuario = (id) => Swal.fire('Teste de modal', `Ver usuário ${id}`, 'info');
-window.editarUsuario = (id) => Swal.fire('Teste de modal', `Editar usuário ${id}`, 'info');
-window.excluirUsuario = (id) => Swal.fire('Teste de modal', `Excluir usuário ${id}`, 'info');
-window.abrirModalNovoVeiculo = () => Swal.fire('Teste de modal', 'Modal de novo veículo', 'info');
-window.abrirModalNovaCategoria = () => Swal.fire('Teste de modal', 'Modal de nova categoria', 'info');
+window.abrirModalNovoVeiculo = function () {
+    const anoAtual = new Date().getFullYear();
+    $.ajax({
+        url: API_URL + '/categories',
+        method: 'GET',
+        success: function (response) {
+            const categorias = response.data || response;
+            let opcoesCategoria = '';
+            categorias.forEach(cat => {
+                opcoesCategoria += `<option value="${cat.id}">${cat.nome}</option>`;
+            });
+
+            Swal.fire({
+                title: 'Novo Veículo',
+                html: `
+                    <div class="text-start">
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Marca *</label>
+                                <input type="text" id="marca" class="form-control" placeholder="Ex: Toyota">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Modelo *</label>
+                                <input type="text" id="modelo" class="form-control" placeholder="Ex: Corolla">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Ano Fabricação *</label>
+                                <input type="number" id="ano_fabricacao" class="form-control" min="1950" max="${anoAtual}">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Ano Modelo *</label>
+                                <input type="number" id="ano_modelo" class="form-control" min="1950" max="${anoAtual+1}">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Placa *</label>
+                                <input type="text" id="placa" class="form-control" placeholder="ABC1234" maxlength="7">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Cor *</label>
+                                <input type="text" id="cor" class="form-control" placeholder="Ex: Branco">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">KM Atual *</label>
+                                <input type="number" id="km_atual" class="form-control" min="0" value="0">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Combustível *</label>
+                                <select id="combustivel" class="form-select">
+                                    <option value="flex">Flex</option>
+                                    <option value="gasolina">Gasolina</option>
+                                    <option value="etanol">Etanol</option>
+                                    <option value="diesel">Diesel</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Categoria *</label>
+                                <select id="id_categoria" class="form-select">
+                                    ${opcoesCategoria}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Status *</label>
+                                <select id="status" class="form-select">
+                                    <option value="disponivel">Disponível</option>
+                                    <option value="manutencao">Manutenção</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                width: '600px',
+                showCancelButton: true,
+                confirmButtonText: 'Cadastrar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    const dados = {
+                        marca: document.getElementById('marca').value,
+                        modelo: document.getElementById('modelo').value,
+                        ano_fabricacao: document.getElementById('ano_fabricacao').value,
+                        ano_modelo: document.getElementById('ano_modelo').value,
+                        placa: document.getElementById('placa').value.toUpperCase(),
+                        cor: document.getElementById('cor').value,
+                        km_atual: document.getElementById('km_atual').value,
+                        combustivel: document.getElementById('combustivel').value,
+                        id_categoria: document.getElementById('id_categoria').value,
+                        status: document.getElementById('status').value
+                    };
+
+                    if (!dados.marca || !dados.modelo || !dados.ano_fabricacao || !dados.ano_modelo || 
+                        !dados.placa || !dados.cor) {
+                        Swal.showValidationMessage('Preencha todos os campos obrigatórios');
+                        return false;
+                    }
+
+                    if (dados.placa.length !== 7) {
+                        Swal.showValidationMessage('A placa deve ter exatamente 7 caracteres');
+                        return false;
+                    }
+
+                    return dados;
+                }
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    $.ajax({
+                        url: API_URL + '/vehicles',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(result.value),
+                        success: function (res) {
+                            exibirSucesso('Veículo cadastrado com sucesso!');
+                            carregarDadosVeiculos();
+                        },
+                        error: function (xhr) {
+                            const msg = xhr.responseJSON?.message || 'Erro ao cadastrar veículo.';
+                            exibirErro(msg);
+                        }
+                    });
+                }
+            });
+        }
+    });
+};
+
+window.editarVeiculo = function (id) {
+    const anoAtual = new Date().getFullYear();
+    $.when(
+        $.ajax({ url: `${API_URL}/vehicles/${id}`, method: 'GET' }),
+        $.ajax({ url: API_URL + '/categories', method: 'GET' })
+    ).done(function (veiculoRes, categoriasRes) {
+        const veiculo = veiculoRes[0].data || veiculoRes[0];
+        const categorias = categoriasRes[0].data || categoriasRes[0];
+        
+        let opcoesCategoria = '';
+        categorias.forEach(cat => {
+            const selected = cat.id == veiculo.id_categoria ? 'selected' : '';
+            opcoesCategoria += `<option value="${cat.id}" ${selected}>${cat.nome}</option>`;
+        });
+
+        Swal.fire({
+            title: `Editar Veículo #${id}`,
+            html: `
+                <div class="text-start">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Marca *</label>
+                            <input type="text" id="marca" class="form-control" value="${veiculo.marca}">
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Modelo *</label>
+                            <input type="text" id="modelo" class="form-control" value="${veiculo.modelo}">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Ano Fabricação *</label>
+                            <input type="number" id="ano_fabricacao" class="form-control" value="${veiculo.ano_fabricacao}" min="1950" max="${anoAtual}">
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Ano Modelo *</label>
+                            <input type="number" id="ano_modelo" class="form-control" value="${veiculo.ano_modelo}" min="1950" max="${anoAtual+1}">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Cor *</label>
+                            <input type="text" id="cor" class="form-control" value="${veiculo.cor}">
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">KM Atual *</label>
+                            <input type="number" id="km_atual" class="form-control" value="${veiculo.km_atual}">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Combustível *</label>
+                            <select id="combustivel" class="form-select">
+                                <option value="flex" ${veiculo.combustivel === 'flex' ? 'selected' : ''}>Flex</option>
+                                <option value="gasolina" ${veiculo.combustivel === 'gasolina' ? 'selected' : ''}>Gasolina</option>
+                                <option value="etanol" ${veiculo.combustivel === 'etanol' ? 'selected' : ''}>Etanol</option>
+                                <option value="diesel" ${veiculo.combustivel === 'diesel' ? 'selected' : ''}>Diesel</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Categoria *</label>
+                            <select id="id_categoria" class="form-select">
+                                ${opcoesCategoria}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Status *</label>
+                            <select id="status" class="form-select">
+                                <option value="disponivel" ${veiculo.status === 'disponivel' ? 'selected' : ''}>Disponível</option>
+                                <option value="manutencao" ${veiculo.status === 'manutencao' ? 'selected' : ''}>Manutenção</option>
+                            </select>
+                        </div>
+                    </div>
+                    <small class="text-muted">Placa: ${veiculo.placa} (não editável)</small>
+                </div>
+            `,
+            width: '600px',
+            showCancelButton: true,
+            confirmButtonText: 'Salvar',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                return {
+                    marca: document.getElementById('marca').value,
+                    modelo: document.getElementById('modelo').value,
+                    ano_fabricacao: document.getElementById('ano_fabricacao').value,
+                    ano_modelo: document.getElementById('ano_modelo').value,
+                    cor: document.getElementById('cor').value,
+                    km_atual: document.getElementById('km_atual').value,
+                    combustivel: document.getElementById('combustivel').value,
+                    id_categoria: document.getElementById('id_categoria').value,
+                    status: document.getElementById('status').value
+                };
+            }
+        }).then((result) => {
+            if (result.isConfirmed && result.value) {
+                $.ajax({
+                    url: `${API_URL}/vehicles/${id}`,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.stringify(result.value),
+                    success: function (res) {
+                        exibirSucesso('Veículo atualizado com sucesso!');
+                        carregarDadosVeiculos();
+                    },
+                    error: function (xhr) {
+                        const msg = xhr.responseJSON?.message || 'Erro ao atualizar veículo.';
+                        exibirErro(msg);
+                    }
+                });
+            }
+        });
+    }).fail(function () {
+        exibirErro('Erro ao carregar dados do veículo.');
+    });
+};
+
+window.excluirVeiculo = function (id) {
+    Swal.fire({
+        title: 'Confirmar exclusão?',
+        text: "Esta ação não poderá ser desfeita!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'rgb(255, 0, 0)',
+        cancelButtonColor: 'rgb(0, 132, 255)',
+        confirmButtonText: 'Sim, excluir!',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: `${API_URL}/vehicles/${id}`,
+                method: 'DELETE',
+                success: function (res) {
+                    exibirSucesso('Veículo excluído com sucesso!');
+                    carregarDadosVeiculos();
+                },
+                error: function (xhr) {
+                    const msg = xhr.responseJSON?.message || 'Erro ao excluir veículo.';
+                    exibirErro(msg);
+                }
+            });
+        }
+    });
+};
+
+window.abrirModalNovaCategoria = function () {
+    Swal.fire({
+        title: 'Nova Categoria',
+        html: `
+            <div class="text-start">
+                <div class="mb-3">
+                    <label class="form-label">Nome da Categoria *</label>
+                    <input type="text" id="nome" class="form-control" placeholder="Ex: SUV">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Valor Diário (R$) *</label>
+                    <input type="number" id="valor_diario" class="form-control" step="5" min="0" placeholder="Ex: 150.00">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Valor Semanal (R$) *</label>
+                    <input type="number" id="valor_semanal" class="form-control" step="10" min="0" placeholder="Ex: 900.00">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Valor Mensal (R$) *</label>
+                    <input type="number" id="valor_mensal" class="form-control" step="50" min="0" placeholder="Ex: 3000.00">
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Cadastrar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const dados = {
+                nome: document.getElementById('nome').value,
+                valor_diario: document.getElementById('valor_diario').value,
+                valor_semanal: document.getElementById('valor_semanal').value,
+                valor_mensal: document.getElementById('valor_mensal').value
+            };
+
+            if (!dados.nome || !dados.valor_diario || !dados.valor_semanal || !dados.valor_mensal) {
+                Swal.showValidationMessage('Preencha todos os campos');
+                return false;
+            }
+
+            return dados;
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            $.ajax({
+                url: API_URL + '/categories',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(result.value),
+                success: function (res) {
+                    exibirSucesso('Categoria cadastrada com sucesso!');
+                    carregarDadosCategorias();
+                },
+                error: function (xhr) {
+                    const msg = xhr.responseJSON?.message || 'Erro ao cadastrar categoria.';
+                    exibirErro(msg);
+                }
+            });
+        }
+    });
+};
+
+window.editarCategoria = function (id) {
+    $.ajax({
+        url: `${API_URL}/categories/${id}`,
+        method: 'GET',
+        success: function (response) {
+            const categoria = response.data || response;
+            
+            Swal.fire({
+                title: 'Editar Categoria',
+                html: `
+                    <div class="text-start">
+                        <div class="mb-3">
+                            <label class="form-label">Nome da Categoria *</label>
+                            <input type="text" id="nome" class="form-control" value="${categoria.nome}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Valor Diário (R$) *</label>
+                            <input type="number" id="valor_diario" class="form-control" step="5" value="${categoria.valor_diario}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Valor Semanal (R$) *</label>
+                            <input type="number" id="valor_semanal" class="form-control" step="10" value="${categoria.valor_semanal}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Valor Mensal (R$) *</label>
+                            <input type="number" id="valor_mensal" class="form-control" step="25" value="${categoria.valor_mensal}">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Salvar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    return {
+                        nome: document.getElementById('nome').value,
+                        valor_diario: document.getElementById('valor_diario').value,
+                        valor_semanal: document.getElementById('valor_semanal').value,
+                        valor_mensal: document.getElementById('valor_mensal').value
+                    };
+                }
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    $.ajax({
+                        url: `${API_URL}/categories/${id}`,
+                        method: 'PUT',
+                        contentType: 'application/json',
+                        data: JSON.stringify(result.value),
+                        success: function (res) {
+                            exibirSucesso('Categoria atualizada com sucesso!');
+                            carregarDadosCategorias();
+                        },
+                        error: function (xhr) {
+                            const msg = xhr.responseJSON?.message || 'Erro ao atualizar categoria.';
+                            exibirErro(msg);
+                        }
+                    });
+                }
+            });
+        },
+        error: function () {
+            exibirErro('Erro ao carregar dados da categoria.');
+        }
+    });
+};
+
+window.excluirCategoria = function (id) {
+    Swal.fire({
+        title: 'Confirmar exclusão?',
+        text: "Esta categoria será removida. Você não poderá criar uma nova com o mesmo nome.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'rgb(255, 0, 0)',
+        cancelButtonColor: 'rgb(0, 132, 255)',
+        confirmButtonText: 'Sim, excluir!',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: `${API_URL}/categories/${id}`,
+                method: 'DELETE',
+                success: function (res) {
+                    exibirSucesso('Categoria excluída com sucesso!');
+                    carregarDadosCategorias();
+                },
+                error: function (xhr) {
+                    const msg = xhr.responseJSON?.message || 'Erro ao excluir categoria.';
+                    exibirErro(msg);
+                }
+            });
+        }
+    });
+};
+
+window.verUsuario = function (id) {
+    $.ajax({
+        url: `${API_URL}/users/${id}`,
+        method: 'GET',
+        success: function (response) {
+            const user = response.data || response;
+            
+            Swal.fire({
+                title: 'Detalhes do Usuário',
+                html: `
+                    <div class="text-start">
+                        <table class="table table-sm">
+                            <tr><th>Nome:</th><td>${user.nome}</td></tr>
+                            <tr><th>Email:</th><td>${user.email}</td></tr>
+                            <tr><th>CPF:</th><td>${user.cpf || '-'}</td></tr>
+                            <tr><th>Telefone:</th><td>${user.telefone || '-'}</td></tr>
+                            <tr><th>Role:</th><td><span class="badge bg-primary">${user.role}</span></td></tr>
+                            <tr><th>CNH Número:</th><td>${user.cnh_numero || '-'}</td></tr>
+                            <tr><th>CNH Validade:</th><td>${formatarData(user.cnh_validade)}</td></tr>
+                            <tr><th>CNH Categoria:</th><td>${user.cnh_categoria || '-'}</td></tr>
+                            <tr><th>CEP:</th><td>${user.cep || '-'}</td></tr>
+                            <tr><th>Número:</th><td>${user.numero || '-'}</td></tr>
+                        </table>
+                    </div>
+                `,
+                width: '500px',
+                confirmButtonText: 'Fechar'
+            });
+        },
+        error: function () {
+            exibirErro('Erro ao carregar dados do usuário.');
+        }
+    });
+};
+
+window.editarUsuario = function (id) {
+    $.ajax({
+        url: `${API_URL}/users/${id}`,
+        method: 'GET',
+        success: function (response) {
+            const user = response.data || response;
+            
+            Swal.fire({
+                title: 'Editar Usuário',
+                html: `
+                    <div class="text-start">
+                        <div class="row">
+                            <div class="col-12 mb-2">
+                                <label class="form-label">Nome *</label>
+                                <input type="text" id="nome" class="form-control" value="${user.nome}">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Email (não editável)</label>
+                                <input type="email" id="email" class="form-control" value="${user.email}" readonly disabled>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">CPF *</label>
+                                <input type="text" id="cpf" class="form-control" value="${user.cpf || ''}">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Telefone *</label>
+                                <input type="text" id="telefone" class="form-control" value="${user.telefone || ''}">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Role *</label>
+                                <select id="role" class="form-select">
+                                    <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                                    <option value="client" ${user.role === 'client' ? 'selected' : ''}>Cliente</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">CNH Número *</label>
+                                <input type="text" id="cnh_numero" class="form-control" value="${user.cnh_numero || ''}">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">CNH Categoria *</label>
+                                <input type="text" id="cnh_categoria" class="form-control" value="${user.cnh_categoria || ''}">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">CNH Validade *</label>
+                                <input type="date" id="cnh_validade" class="form-control" value="${user.cnh_validade || ''}">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">CEP *</label>
+                                <input type="text" id="cep" class="form-control" value="${user.cep || ''}">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12 mb-2">
+                                <label class="form-label">Número *</label>
+                                <input type="text" id="numero" class="form-control" value="${user.numero || ''}">
+                            </div>
+                        </div>
+                    </div>
+                `,
+                width: '600px',
+                showCancelButton: true,
+                confirmButtonText: 'Salvar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    const dados = {
+                        nome: document.getElementById('nome').value,
+                        cpf: document.getElementById('cpf').value,
+                        telefone: document.getElementById('telefone').value,
+                        role: document.getElementById('role').value,
+                        cnh_numero: document.getElementById('cnh_numero').value,
+                        cnh_categoria: document.getElementById('cnh_categoria').value,
+                        cnh_validade: document.getElementById('cnh_validade').value,
+                        cep: document.getElementById('cep').value,
+                        numero: document.getElementById('numero').value
+                    };
+
+                    return dados;
+                }
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    $.ajax({
+                        url: `${API_URL}/users/${id}`,
+                        method: 'PUT',
+                        contentType: 'application/json',
+                        data: JSON.stringify(result.value),
+                        success: function (res) {
+                            exibirSucesso('Usuário atualizado com sucesso!');
+                            carregarDadosUsuarios();
+                        },
+                        error: function (xhr) {
+                            const msg = xhr.responseJSON?.message || 'Erro ao atualizar usuário.';
+                            exibirErro(msg);
+                        }
+                    });
+                }
+            });
+        },
+        error: function () {
+            exibirErro('Erro ao carregar dados do usuário.');
+        }
+    });
+};
+
+window.excluirUsuario = function (id) {
+    Swal.fire({
+        title: 'Confirmar exclusão?',
+        text: "Este usuário será removido permanentemente! Você não poderá criar outro com o mesmo email e/ou CPF e/ou CNH.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'rgb(255, 0, 0)',
+        cancelButtonColor: 'rgb(0, 132, 255)',
+        confirmButtonText: 'Sim, excluir!',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: `${API_URL}/users/${id}`,
+                method: 'DELETE',
+                success: function (res) {
+                    exibirSucesso('Usuário excluído com sucesso!');
+                    carregarDadosUsuarios();
+                },
+                error: function (xhr) {
+                    const msg = xhr.responseJSON?.message || 'Erro ao excluir usuário.';
+                    exibirErro(msg);
+                }
+            });
+        }
+    });
+};
