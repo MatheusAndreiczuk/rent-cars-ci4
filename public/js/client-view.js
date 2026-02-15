@@ -68,8 +68,31 @@ function carregarCategoriasParaCatalogo() {
     });
 }
 
+function calcularDiasEValor(dataRetirada, dataDevolucao, valorDiario, valorSemanal, valorMensal) {
+    const retirada = new Date(dataRetirada);
+    const devolucao = new Date(dataDevolucao);
+
+    const diffTime = Math.abs(devolucao - retirada);
+    const dias = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // cálculo igual ao backend
+    const meses = Math.floor(dias / 30);
+    const resto = dias % 30;
+    const semanas = Math.floor(resto / 7);
+    const diasAvulsos = resto % 7;
+
+    const valorEstimado = (meses * valorMensal) + (semanas * valorSemanal) + (diasAvulsos * valorDiario);
+
+    return {
+        dias: dias,
+        valorEstimado: valorEstimado
+    };
+}
+
 function carregarCatalogo() {
     const categoriaFiltro = $('#filtro-categoria-catalogo').val();
+    const dataRetirada = $('#filtro-data-retirada').val();
+    const dataDevolucao = $('#filtro-data-devolucao').val();
 
     $('#main-content').html(`
         <h3 class="mb-4">Veículos Disponíveis</h3>
@@ -107,7 +130,11 @@ function carregarCatalogo() {
 
             let htmlGrid = '';
             disponiveis.forEach(carro => {
-                htmlGrid += criarCardVeiculo(carro);
+                const calculo = calcularDiasEValor(dataRetirada, dataDevolucao,
+                    parseFloat(carro.valor_diario),
+                    parseFloat(carro.valor_semanal),
+                    parseFloat(carro.valor_mensal));
+                htmlGrid += criarCardVeiculo(carro, calculo);
             });
 
             $('#grid-carros').html(htmlGrid);
@@ -123,7 +150,19 @@ function carregarCatalogo() {
     });
 }
 
-function criarCardVeiculo(carro) {
+function criarCardVeiculo(carro, calculoValor = null) {
+    let valorEstimadoHtml = '';
+
+    if (calculoValor && calculoValor.valorEstimado) {
+        valorEstimadoHtml = `
+            <div class="alert alert-success p-2 mb-2 text-center">
+                <small class="d-block"><strong>${calculoValor.dias}</strong> ${calculoValor.dias === 1 ? 'dia' : 'dias'}</small>
+                <strong class="fs-5">R$ ${calculoValor.valorEstimado.toFixed(2)}</strong>
+                <small class="d-block text-muted">Valor Estimado</small>
+            </div>
+        `;
+    }
+
     return `
         <div class="col-md-6 col-lg-4 mb-3">
             <div class="card h-100 shadow-sm border-0">
@@ -140,6 +179,8 @@ function criarCardVeiculo(carro) {
                         <li><i class="bi bi-palette text-primary px-2"></i> ${carro.cor}</li>
                         <li><i class="bi bi-fuel-pump text-primary px-2"></i> ${carro.combustivel}</li>
                     </ul>
+                    
+                    ${valorEstimadoHtml}
                     
                     <div class="border-top pt-2 mb-2">
                         <div class="row text-center">
@@ -161,7 +202,9 @@ function criarCardVeiculo(carro) {
                     <button class="btn btn-primary btn-sm w-100 btn-alugar mt-2" 
                         data-id="${carro.id}" 
                         data-modelo="${carro.modelo}"
-                        data-preco="${carro.valor_diario}">
+                        data-preco-diario="${carro.valor_diario}"
+                        data-preco-semanal="${carro.valor_semanal}"
+                        data-preco-mensal="${carro.valor_mensal}">
                         <i class="bi bi-calendar-check px-2"></i> Reservar Agora
                     </button>
                 </div>
@@ -174,23 +217,74 @@ function ativarBotoesReserva() {
     $('.btn-alugar').off('click').on('click', function () {
         const id = $(this).data('id');
         const modelo = $(this).data('modelo');
-        const preco = $(this).data('preco');
+        const precoDiario = $(this).data('preco-diario');
+        const precoSemanal = $(this).data('preco-semanal');
+        const precoMensal = $(this).data('preco-mensal');
+
+        const dataRetiradaFiltro = $('#filtro-data-retirada').val();
+        const dataDevolucaoFiltro = $('#filtro-data-devolucao').val();
+
+        // calcular valor previsto se tiver filtros de data preenchidos
+        let valorEstimadoInicial = '';
+        if (dataRetiradaFiltro && dataDevolucaoFiltro) {
+            const calculo = calcularDiasEValor(dataRetiradaFiltro, dataDevolucaoFiltro,
+                parseFloat(precoDiario), parseFloat(precoSemanal), parseFloat(precoMensal));
+            valorEstimadoInicial = `
+                    <div class="alert alert-success mt-2" id="valor-estimado-modal">
+                        <strong>Período:</strong> ${calculo.dias} ${calculo.dias === 1 ? 'dia' : 'dias'}<br>
+                        <strong>Valor Total Estimado:</strong> R$ ${calculo.valorEstimado.toFixed(2)}
+                    </div>
+                `;
+        }
 
         Swal.fire({
             title: `Reservar ${modelo}?`,
             html: `
-                <p>Valor: <strong>R$ ${preco}/dia</strong></p>
+                <p>Valores: <strong>R$ ${precoDiario}/dia</strong> | <strong>R$ ${precoSemanal}/semana</strong> | <strong>R$ ${precoMensal}/mês</strong></p>
                 <div class="text-start mt-3">
                     <label class="form-label">Data de Retirada</label>
-                    <input type="date" id="data-retirada" class="form-control mb-2">
+                    <input type="date" id="data-retirada" class="form-control mb-2" value="${dataRetiradaFiltro || ''}">
                     <label class="form-label">Data de Devolução</label>
-                    <input type="date" id="data-devolucao" class="form-control">
+                    <input type="date" id="data-devolucao" class="form-control" value="${dataDevolucaoFiltro || ''}">
                 </div>
+                ${valorEstimadoInicial}
             `,
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Confirmar Reserva',
             cancelButtonText: 'Cancelar',
+            didOpen: () => {
+                const inputRetirada = document.getElementById('data-retirada');
+                const inputDevolucao = document.getElementById('data-devolucao');
+
+                const atualizarValor = () => {
+                    const dataRet = inputRetirada.value;
+                    const dataDev = inputDevolucao.value;
+
+                    if (dataRet && dataDev) {
+                        const calculo = calcularDiasEValor(dataRet, dataDev,
+                            parseFloat(precoDiario), parseFloat(precoSemanal), parseFloat(precoMensal));
+
+                        const valorEstimadoDiv = document.getElementById('valor-estimado-modal');
+                        if (valorEstimadoDiv) {
+                            valorEstimadoDiv.innerHTML = `
+                                    <strong>Período:</strong> ${calculo.dias} ${calculo.dias === 1 ? 'dia' : 'dias'}<br>
+                                    <strong>Valor Total Estimado:</strong> R$ ${calculo.valorEstimado.toFixed(2)}
+                                `;
+                        } else {
+                            inputDevolucao.parentNode.insertAdjacentHTML('afterend', `
+                                    <div class="alert alert-success mt-2" id="valor-estimado-modal">
+                                        <strong>Período:</strong> ${calculo.dias} ${calculo.dias === 1 ? 'dia' : 'dias'}<br>
+                                        <strong>Valor Total Estimado:</strong> R$ ${calculo.valorEstimado.toFixed(2)}
+                                    </div>
+                                `);
+                        }
+                    }
+                };
+
+                inputRetirada.addEventListener('change', atualizarValor);
+                inputDevolucao.addEventListener('change', atualizarValor);
+            },
             preConfirm: () => {
                 const dataRetirada = document.getElementById('data-retirada').value;
                 const dataDevolucao = document.getElementById('data-devolucao').value;
