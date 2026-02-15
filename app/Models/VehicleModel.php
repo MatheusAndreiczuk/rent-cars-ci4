@@ -54,6 +54,10 @@ class VehicleModel extends Model {
 
     public function updateVehicle($id, $data)
     {
+        if (is_object($data)) {
+            $data = json_decode(json_encode($data), true);
+        }
+
         $rules = $this->validationRules;
         $rules['placa'] = "required|exact_length[7]|is_unique[vehicles.placa,id,{$id}]";
         
