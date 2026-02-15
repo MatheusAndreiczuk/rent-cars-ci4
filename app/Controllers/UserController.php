@@ -11,7 +11,12 @@ class UserController extends ResourceController
 
     public function index()
     {
-        return $this->respond($this->model->findAll());
+        $users = $this->model->findAll();
+        //percorre o array de usuarios do bd e remove a senha de cada um, depois retorna o array sem as senhas para a própria variavel $users
+        $users = array_map(function($user) {
+            return $this->model->removeSenha($user);
+        }, $users);
+        return $this->respond($users);
     }
 
     public function show($id = null)
@@ -21,6 +26,14 @@ class UserController extends ResourceController
             return $this->failNotFound('Usuário não encontrado.');
         }
 
+        $authUser = $this->request->user ?? null;
+        if ($authUser && isset($authUser->role)) {
+            if ($authUser->role !== 'admin' && $authUser->uid != $id) {
+                return $this->failForbidden('Você só pode visualizar sua própria conta.');
+            }
+        }
+
+        $user = $this->model->removeSenha($user);
         return $this->respond($user);
     }
 
@@ -44,6 +57,13 @@ class UserController extends ResourceController
             return $this->failNotFound('Usuário não encontrado.');
         }
 
+        $user = $this->request->user ?? null;
+        if ($user && isset($user->role)) {
+            if ($user->role !== 'admin' && $user->uid != $id) {
+                return $this->failForbidden('Você só pode editar sua própria conta.');
+            }
+        }
+
         $data = $this->request->getJSON();
 
         if ($this->model->updateUser($id, $data)) {
@@ -57,6 +77,13 @@ class UserController extends ResourceController
     {
         if (!$this->model->find($id)) {
             return $this->failNotFound('Usuário não encontrado.');
+        }
+
+        $user = $this->request->user ?? null;
+        if ($user && isset($user->role)) {
+            if ($user->role !== 'admin' && $user->uid != $id) {
+                return $this->failForbidden('Você só pode deletar sua própria conta.');
+            }
         }
 
         if ($this->model->delete($id)) {

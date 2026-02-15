@@ -21,6 +21,12 @@ class RentalController extends ResourceController
     {
         $data = $this->request->getJSON();
 
+        //pega id da request vinda do filter
+        $user = $this->request->user ?? null;
+        if (!$user || !isset($user->uid)) {
+            return $this->failUnauthorized('Usuário não autenticado.');
+        }
+
         $veiculo = $this->vehicleModel->getVehicle($data->veiculo_id);
 
         if (!$veiculo) {
@@ -70,7 +76,7 @@ class RentalController extends ResourceController
             ($dias_avulsos * $veiculo['valor_diario']);
 
         $novoAluguel = [
-            'user_id'                 => (int)$data->user_id,
+            'user_id'                 => (int)$user->uid, //id do token
             'veiculo_id'              => (int)$data->veiculo_id,
             'valor_diario_praticado'  => (float)$veiculo['valor_diario'],
             'data_retirada'           => $data->data_retirada,
@@ -230,5 +236,21 @@ class RentalController extends ResourceController
     public function index()
     {
         return $this->respond($this->model->findAll());
+    }
+
+    public function myRentals()
+    {
+        $user = $this->request->user ?? null;
+
+        if (!$user || !isset($user->uid)) {
+            return $this->failUnauthorized('Usuário não autenticado.');
+        }
+
+        $rentals = $this->model->where('user_id', $user->uid)->findAll();
+
+        return $this->respond([
+            'data' => $rentals,
+            'message' => 'Suas locações'
+        ]);
     }
 }
