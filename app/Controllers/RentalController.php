@@ -47,20 +47,6 @@ class RentalController extends ResourceController
             if ($dias < 1) {
                 $dias = 1;
             }
-
-            // verificar se há conflito de datas para o mesmo veículo
-            $conflitoDatas = $this->model->where('veiculo_id', $data->veiculo_id)
-                ->where('status !=', 'cancelado')
-                ->where('status !=', 'finalizado')
-                ->groupStart()
-                    ->where('data_retirada <=', $data->data_devolucao_prevista)
-                    ->where('data_devolucao_prevista >=', $data->data_retirada)
-                ->groupEnd()
-                ->first();
-
-            if ($conflitoDatas) {
-                return $this->fail('Veículo já está reservado/alugado para este período.', 409);
-            }
         } catch (\Exception $e) {
             return $this->fail('Datas inválidas: ' . $e->getMessage());
         }
@@ -86,13 +72,22 @@ class RentalController extends ResourceController
             'status'                  => 'reservado'
         ];
 
+        $db = \Config\Database::connect();
+        $db->transStart();
+
         if ($this->model->insert($novoAluguel)) {
+            $this->vehicleModel->update($data->veiculo_id, ['status' => 'reservado']);
+            
+            $db->transComplete();
+            
             return $this->respondCreated([
                 'message' => 'Reserva realizada com sucesso.',
                 'valor_previsto' => $valor_previsto,
                 'dias' => $dias
             ]);
         }
+        
+        $db->transComplete();
 
         $errors = $this->model->errors();
         return $this->fail('Erro ao criar aluguel: ' . json_encode($errors), 400);
@@ -108,8 +103,8 @@ class RentalController extends ResourceController
 
         $veiculo = $this->vehicleModel->find($reserva['veiculo_id']);
 
-        if ($veiculo['status'] !== 'disponivel') {
-            return $this->fail('O veículo designado não está disponível agora.', 409);
+        if ($veiculo['status'] !== 'reservado') {
+            return $this->fail('O veículo não está com status de reservado para iniciar a locação.', 409);
         }
 
         $agora = Time::now();
@@ -216,9 +211,16 @@ class RentalController extends ResourceController
             return $this->fail('Cancelamento é permitido com pelo menos 24 horas de antecedência.', 409);
         }
 
+        $db = \Config\Database::connect();
+        $db->transStart();
+
         $this->model->update($id, [
             'status' => 'cancelado'
         ]);
+        
+        $this->vehicleModel->update($aluguel['veiculo_id'], ['status' => 'disponivel']);
+
+        $db->transComplete();
 
         return $this->respond(['message' => 'Locação cancelada com sucesso.']);
     }

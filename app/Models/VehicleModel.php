@@ -36,7 +36,7 @@ class VehicleModel extends Model {
         'placa' => 'required|is_unique[vehicles.placa]|exact_length[7]',
         'cor' => 'required|min_length[3]',
         'combustivel' => 'required|in_list[flex,etanol,gasolina,diesel]',
-        'status' => 'required|in_list[disponivel,alugado,manutencao]',
+        'status' => 'required|in_list[disponivel,reservado,alugado,manutencao]',
         'id_categoria' => 'required|is_natural_no_zero'
     ];
 

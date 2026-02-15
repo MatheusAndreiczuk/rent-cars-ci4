@@ -21,6 +21,7 @@ $routes->group('', ['filter' => 'auth'], function($routes) {
     
     $routes->get('rentals/my', 'RentalController::myRentals');
     $routes->post('rentals', 'RentalController::create');
+    $routes->put('rentals/(:num)/cancel', 'RentalController::cancel/$1');    // cancelamento
     
     $routes->get('vehicles', 'VehicleController::index');
     $routes->get('vehicles/(:num)', 'VehicleController::show/$1');
@@ -46,5 +47,4 @@ $routes->group('', ['filter' => 'admin'], function($routes) {
     $routes->delete('rentals/(:num)', 'RentalController::delete/$1');
     $routes->put('rentals/(:num)/start', 'RentalController::start/$1');      // retirada
     $routes->put('rentals/(:num)/finish', 'RentalController::finish/$1');    // devolução
-    $routes->put('rentals/(:num)/cancel', 'RentalController::cancel/$1');    // cancelamento
 });
