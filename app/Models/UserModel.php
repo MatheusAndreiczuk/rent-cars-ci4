@@ -56,16 +56,34 @@ class UserModel extends Model {
         return $data;
     }
 
+    public function removeSenha($user)
+    {
+        if (is_object($user)) {
+            $user = json_decode(json_encode($user), true);
+        }
+
+        if (is_array($user)) {
+            unset($user['senha']);
+        }
+
+        return $user;
+    }
     public function updateUser($id, $data)
     {
+        if (is_object($data)) {
+            $data = json_decode(json_encode($data), true);
+        }
+
         $rules = $this->validationRules;
         $rules['cpf']        = "required|exact_length[11]|is_unique[users.cpf,id,{$id}]";
         $rules['email']      = "required|valid_email|is_unique[users.email,id,{$id}]";
         $rules['cnh_numero'] = "required|is_unique[users.cnh_numero,id,{$id}]";
 
-        if (empty($data['senha'])) {
-            unset($rules['senha']);
-        }
+        unset($data['email']);
+        unset($data['senha']);
+        
+        unset($rules['email']);
+        unset($rules['senha']);
 
         $this->setValidationRules($rules);
 
