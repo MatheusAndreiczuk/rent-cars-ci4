@@ -43,11 +43,32 @@ function renderDashboardSection() {
         </div>
         <div class="mb-3">
             <label class="form-label fw-bold">Período</label>
-            <select class="form-select" id="filtro-periodo">
+            <select class="form-select" id="filtro-periodo-tipo">
                 <option value="todos">Todos</option>
                 <option value="hoje">Hoje</option>
                 <option value="semana">Esta Semana</option>
                 <option value="mes">Este Mês</option>
+                <option value="ano_anterior">Ano Anterior</option>
+                <option value="personalizado">Personalizado</option>
+            </select>
+        </div>
+        <div id="filtro-datas-personalizadas" style="display:none;">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Data Inicial</label>
+                <input type="date" class="form-control" id="filtro-data-inicial">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Data Final</label>
+                <input type="date" class="form-control" id="filtro-data-final">
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label fw-bold">Ordenar por</label>
+            <select class="form-select" id="filtro-ordenacao">
+                <option value="id_desc">Mais recentes</option>
+                <option value="id_asc">Mais antigas</option>
+                <option value="devolucao_asc">Devolução mais próxima</option>
+                <option value="devolucao_desc">Devolução mais distante</option>
             </select>
         </div>
         <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="carregarDadosDashboard()">
@@ -79,68 +100,141 @@ function renderDashboardSection() {
 
     carregarDadosDashboard();
 
-    $('#filtro-status-dashboard, #filtro-periodo').on('change', function () {
+    $('#filtro-periodo-tipo').on('change', function() {
+        if ($(this).val() === 'personalizado') {
+            $('#filtro-datas-personalizadas').show();
+        } else {
+            $('#filtro-datas-personalizadas').hide();
+        }
+    });
+
+    $('#filtro-status-dashboard, #filtro-periodo-tipo, #filtro-ordenacao, #filtro-data-inicial, #filtro-data-final').on('change', function () {
         carregarDadosDashboard();
     });
 }
 
 function carregarDadosDashboard() {
     const filtroStatus = $('#filtro-status-dashboard').val() || 'todos';
+    const filtroPeriodoTipo = $('#filtro-periodo-tipo').val() || 'todos';
+    const ordenacao = $('#filtro-ordenacao').val() || 'id_desc';
     mostrarLoading('#tabela-dashboard-body', 7);
 
-    $.ajax({
-        url: API_URL + '/rentals',
-        method: 'GET',
-        success: function (response) {
-            let locacoes = response.data || response;
+    $.when(
+        $.ajax({ url: API_URL + '/rentals', method: 'GET' }),
+        $.ajax({ url: API_URL + '/vehicles', method: 'GET' })
+    ).done(function (locacoesRes, veiculosRes) {
+        let locacoes = locacoesRes[0].data || locacoesRes[0];
+        let veiculos = veiculosRes[0].data || veiculosRes[0];
 
-            let countAtivos = 0;
-            let countReservas = 0;
-            let totalReceita = 0;
+        const veiculosMap = {};
+        veiculos.forEach(v => {
+            veiculosMap[v.id] = v;
+        });
 
-            locacoes.forEach(loc => {
-                if (loc.status === 'ativo') countAtivos++;
-                if (loc.status === 'reservado') countReservas++;
-                totalReceita += parseFloat(loc.valor_total || loc.valor_previsto || 0);
-            });
+        let countAtivos = 0;
+        let countReservas = 0;
+        let totalReceita = 0;
 
-            $('#dashboard-cards').html(`
-                ${cardMetrica('Locações Ativas', countAtivos, 'primary')}
-                ${cardMetrica('Receita Total', 'R$ ' + totalReceita.toFixed(2), 'success')}
-                ${cardMetrica('Reservas Pendentes', countReservas, 'warning')}
-            `);
+        locacoes.forEach(loc => {
+            if (loc.status === 'ativo') countAtivos++;
+            if (loc.status === 'reservado') countReservas++;
+            totalReceita += parseFloat(loc.valor_total || loc.valor_previsto || 0);
+        });
 
-            let locacoesFiltradas = locacoes;
-            if (filtroStatus !== 'todos') {
-                locacoesFiltradas = locacoes.filter(loc => loc.status === filtroStatus);
-            }
+        $('#dashboard-cards').html(`
+            ${cardMetrica('Locações Ativas', countAtivos, 'primary')}
+            ${cardMetrica('Receita Total', formatarMoeda(totalReceita), 'success')}
+            ${cardMetrica('Reservas Pendentes', countReservas, 'warning')}
+        `);
 
-            if (locacoesFiltradas.length === 0) {
-                mostrarVazio('#tabela-dashboard-body', 'Nenhuma locação encontrada com este filtro.', 7);
-                return;
-            }
-
-            let htmlTabela = '';
-            locacoesFiltradas.forEach(loc => {
-                let valor = parseFloat(loc.valor_total || loc.valor_previsto || 0);
-                htmlTabela += `
-                    <tr>
-                        <td>#${loc.id}</td>
-                        <td>Veículo ${loc.veiculo_id}</td>
-                        <td class="d-none d-md-table-cell">${formatarData(loc.data_retirada)}</td>
-                        <td class="d-none d-md-table-cell">${formatarData(loc.data_devolucao_prevista)}</td>
-                        <td>R$ ${valor.toFixed(2)}</td>
-                        <td><span class="badge bg-${getCorStatus(loc.status)}">${loc.status.toUpperCase()}</span></td>
-                        <td>${getBotoesAcaoLocacao(loc)}</td>
-                    </tr>
-                `;
-            });
-
-            $('#tabela-dashboard-body').html(htmlTabela);
-        },
-        error: function () {
-            exibirErro('Erro ao carregar dados do dashboard.');
+        let locacoesFiltradas = locacoes;
+        
+        if (filtroStatus !== 'todos') {
+            locacoesFiltradas = locacoesFiltradas.filter(loc => loc.status === filtroStatus);
         }
+
+        if (filtroPeriodoTipo !== 'todos') {
+            const agora = new Date();
+            let dataInicio, dataFim;
+
+            if (filtroPeriodoTipo === 'hoje') {
+                dataInicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+                dataFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59);
+            } else if (filtroPeriodoTipo === 'semana') {
+                const diaAtual = agora.getDay();
+                dataInicio = new Date(agora);
+                dataInicio.setDate(agora.getDate() - diaAtual);
+                dataFim = new Date(dataInicio);
+                dataFim.setDate(dataInicio.getDate() + 6);
+            } else if (filtroPeriodoTipo === 'mes') {
+                dataInicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
+                dataFim = new Date(agora.getFullYear(), agora.getMonth() + 1, 0);
+            } else if (filtroPeriodoTipo === 'ano_anterior') {
+                dataInicio = new Date(agora.getFullYear() - 1, 0, 1);
+                dataFim = new Date(agora.getFullYear() - 1, 11, 31);
+            } else if (filtroPeriodoTipo === 'personalizado') {
+                const dataInicialFiltro = $('#filtro-data-inicial').val();
+                const dataFinalFiltro = $('#filtro-data-final').val();
+                if (dataInicialFiltro && dataFinalFiltro) {
+                    dataInicio = new Date(dataInicialFiltro);
+                    dataFim = new Date(dataFinalFiltro);
+                    dataFim.setHours(23, 59, 59);
+                }
+            }
+
+            if (dataInicio && dataFim) {
+                locacoesFiltradas = locacoesFiltradas.filter(loc => {
+                    const dataRetirada = new Date(loc.data_retirada);
+                    return dataRetirada >= dataInicio && dataRetirada <= dataFim;
+                });
+            }
+        }
+
+        if (ordenacao === 'id_desc') {
+            locacoesFiltradas.sort((a, b) => b.id - a.id);
+        } else if (ordenacao === 'id_asc') {
+            locacoesFiltradas.sort((a, b) => a.id - b.id);
+        } else if (ordenacao === 'devolucao_asc') {
+            locacoesFiltradas.sort((a, b) => {
+                const dataA = new Date(a.data_devolucao_prevista);
+                const dataB = new Date(b.data_devolucao_prevista);
+                return dataA - dataB;
+            });
+        } else if (ordenacao === 'devolucao_desc') {
+            locacoesFiltradas.sort((a, b) => {
+                const dataA = new Date(a.data_devolucao_prevista);
+                const dataB = new Date(b.data_devolucao_prevista);
+                return dataB - dataA;
+            });
+        }
+
+        if (locacoesFiltradas.length === 0) {
+            mostrarVazio('#tabela-dashboard-body', 'Nenhuma locação encontrada com este filtro.', 7);
+            return;
+        }
+
+        let htmlTabela = '';
+        locacoesFiltradas.forEach(loc => {
+            let valor = parseFloat(loc.valor_total || loc.valor_previsto || 0);
+            const veiculo = veiculosMap[loc.veiculo_id] || {};
+            const nomeVeiculo = veiculo.modelo ? `${veiculo.marca} ${veiculo.modelo}` : `Veículo ${loc.veiculo_id}`;
+            
+            htmlTabela += `
+                <tr>
+                    <td>#${loc.id}</td>
+                    <td>${nomeVeiculo}</td>
+                    <td class="d-none d-md-table-cell">${formatarData(loc.data_retirada)}</td>
+                    <td class="d-none d-md-table-cell">${formatarData(loc.data_devolucao_prevista)}</td>
+                    <td class="fw-bold text-success">${formatarMoeda(valor)}</td>
+                    <td><span class="badge bg-${getCorStatus(loc.status)}">${loc.status.toUpperCase()}</span></td>
+                    <td>${getBotoesAcaoLocacao(loc)}</td>
+                </tr>
+            `;
+        });
+
+        $('#tabela-dashboard-body').html(htmlTabela);
+    }).fail(function () {
+        exibirErro('Erro ao carregar dados do dashboard.');
     });
 }
 
@@ -373,6 +467,9 @@ function renderUsuariosSection() {
             <label class="form-label fw-bold">Buscar</label>
             <input type="text" class="form-control" id="busca-usuario" placeholder="Nome ou email...">
         </div>
+        <button class="btn btn-sm btn-success w-100 mt-2" onclick="abrirModalNovoUsuario()">
+            <i class="bi bi-plus-circle"></i> Novo Usuário
+        </button>
     `);
 
     $('#main-content').html(`
@@ -1061,7 +1158,15 @@ window.editarUsuario = function (id) {
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label">CNH Categoria *</label>
-                                <input type="text" id="cnh_categoria" class="form-control" value="${user.cnh_categoria || ''}">
+                                <select class="form-select" id="cnh_categoria" required>
+                                    <option value="" ${!user.cnh_categoria ? 'selected' : ''}>Selecione</option>
+                                    <option value="A" ${user.cnh_categoria === 'A' ? 'selected' : ''}>A</option>
+                                    <option value="B" ${user.cnh_categoria === 'B' ? 'selected' : ''}>B</option>
+                                    <option value="AB" ${user.cnh_categoria === 'AB' ? 'selected' : ''}>AB</option>
+                                    <option value="AC" ${user.cnh_categoria === 'AC' ? 'selected' : ''}>AC</option>
+                                    <option value="AD" ${user.cnh_categoria === 'AD' ? 'selected' : ''}>AD</option>
+                                    <option value="AE" ${user.cnh_categoria === 'AE' ? 'selected' : ''}>AE</option>
+                                </select>
                             </div>
                         </div>
                         <div class="row">
@@ -1147,6 +1252,132 @@ window.excluirUsuario = function (id) {
                 },
                 error: function (xhr) {
                     const msg = xhr.responseJSON?.message || 'Erro ao excluir usuário.';
+                    exibirErro(msg);
+                }
+            });
+        }
+    });
+};
+
+window.abrirModalNovoUsuario = function () {
+    Swal.fire({
+        title: 'Novo Usuário',
+        html: `
+            <div class="text-start">
+                <div class="row">
+                    <div class="col-12 mb-2">
+                        <label class="form-label">Nome <span class="text-danger"> *</span></label>
+                        <input type="text" id="nome" class="form-control" placeholder="Nome completo">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Email <span class="text-danger"> *</span></label>
+                        <input type="email" id="email" class="form-control" placeholder="email@exemplo.com">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Senha <span class="text-danger"> *</span></label>
+                        <input type="password" id="senha" class="form-control" placeholder="Mínimo 6 caracteres">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">CPF <span class="text-danger"> *</span></label>
+                        <input type="text" id="cpf" class="form-control" placeholder="Apenas números">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Telefone <span class="text-danger"> *</span></label>
+                        <input type="text" id="telefone" class="form-control" placeholder="Apenas números">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Role <span class="text-danger"> *</span></label>
+                        <select id="role" class="form-select">
+                            <option value="client">Cliente</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">CNH Número <span class="text-danger"> *</span></label>
+                        <input type="text" id="cnh_numero" class="form-control" placeholder="Apenas números">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">CNH Categoria <span class="text-danger"> *</span></label>
+                        <select class="form-select" id="cnh_categoria" required>
+                            <option value="">Selecione</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="AB">AB</option>
+                            <option value="AC">AC</option>
+                            <option value="AD">AD</option>
+                            <option value="AE">AE</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">CNH Validade <span class="text-danger"> *</span></label>
+                        <input type="date" id="cnh_validade" class="form-control">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">CEP <span class="text-danger"> *</span></label>
+                        <input type="text" id="cep" class="form-control" placeholder="Apenas números">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Número <span class="text-danger"> *</span></label>
+                        <input type="text" id="numero" class="form-control" placeholder="Número">
+                    </div>
+                </div>
+                <small class="text-muted"><p class="text-danger">Campos obrigatórios (*)</p></small>
+            </div>
+        `,
+        width: '700px',
+        showCancelButton: true,
+        confirmButtonText: 'Cadastrar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const dados = {
+                nome: document.getElementById('nome').value,
+                email: document.getElementById('email').value,
+                senha: document.getElementById('senha').value,
+                cpf: document.getElementById('cpf').value,
+                telefone: document.getElementById('telefone').value,
+                role: document.getElementById('role').value,
+                cnh_numero: document.getElementById('cnh_numero').value,
+                cnh_categoria: document.getElementById('cnh_categoria').value,
+                cnh_validade: document.getElementById('cnh_validade').value,
+                cep: document.getElementById('cep').value,
+                numero: document.getElementById('numero').value
+            };
+
+            if (!dados.nome || !dados.email || !dados.senha || !dados.cpf || !dados.telefone || !dados.cnh_numero || !dados.cnh_categoria || !dados.cnh_validade || !dados.cep || !dados.numero) {
+                Swal.showValidationMessage('Preencha todos os campos obrigatórios');
+                return false;
+            }
+
+            if (dados.senha.length < 6) {
+                Swal.showValidationMessage('A senha deve ter no mínimo 6 caracteres');
+                return false;
+            }
+
+            return dados;
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            $.ajax({
+                url: API_URL + '/users',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(result.value),
+                success: function (res) {
+                    exibirSucesso('Usuário cadastrado com sucesso!');
+                    carregarDadosUsuarios();
+                },
+                error: function (xhr) {
+                    const msg = xhr.responseJSON?.message || 'Erro ao cadastrar usuário.';
                     exibirErro(msg);
                 }
             });

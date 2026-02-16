@@ -5,6 +5,11 @@ function formatarData(dataIso) {
     return new Date(dataIso).toLocaleDateString('pt-BR');
 }
 
+function formatarMoeda(valor) {
+    if (!valor && valor !== 0) return 'R$ 0,00';
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+}
+
 function getCorStatus(status) {
     const cores = {
         'ativo': 'primary',
