@@ -1368,7 +1368,7 @@ window.abrirModalNovoUsuario = function () {
     }).then((result) => {
         if (result.isConfirmed && result.value) {
             $.ajax({
-                url: API_URL + '/users',
+                url: API_URL + '/cadastro',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify(result.value),
