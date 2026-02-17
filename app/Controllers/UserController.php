@@ -86,6 +86,15 @@ class UserController extends ResourceController
             }
         }
 
+        $rentalModel = new \App\Models\RentalModel();
+        $locacoesAtivas = $rentalModel->where('user_id', $id)
+            ->whereIn('status', ['reservado', 'ativo'])
+            ->first();
+
+        if ($locacoesAtivas) {
+            return $this->fail('Não é possível excluir usuário com locação ativa ou veículo reservado.', 409);
+        }
+
         if ($this->model->delete($id)) {
             return $this->respondDeleted(['message' => 'Usuário removido com sucesso.']);
         }
