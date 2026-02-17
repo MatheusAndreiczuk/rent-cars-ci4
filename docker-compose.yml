@@ -1,0 +1,47 @@
+services:
+  app:
+    build: .
+    container_name: rent_car_app
+    ports:
+      - "8080:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: rent_car_db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootsecret
+      MYSQL_DATABASE: rent_cars
+      MYSQL_USER: rent_user
+      MYSQL_PASSWORD: secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootsecret"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: rent_car_phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_USER: rent_user
+      PMA_PASSWORD: secret
+    ports:
+      - "8888:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
