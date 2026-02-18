@@ -47,8 +47,13 @@ COPY . .
 # Usa o .env.example como .env (contém os valores corretos para Docker)
 RUN cp .env.example .env
 
-# Permissões da pasta writable
-RUN chown -R www-data:www-data /var/www/html/writable \
+# Cria e ajusta permissões da pasta writable (pode não existir se clonada)
+RUN mkdir -p /var/www/html/writable/cache \
+    && mkdir -p /var/www/html/writable/debugbar \
+    && mkdir -p /var/www/html/writable/logs \
+    && mkdir -p /var/www/html/writable/session \
+    && mkdir -p /var/www/html/writable/uploads \
+    && chown -R www-data:www-data /var/www/html/writable \
     && chmod -R 775 /var/www/html/writable
 
 EXPOSE 80
