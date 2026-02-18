@@ -1,69 +1,145 @@
-# CodeIgniter 4 Application Starter
+# Rent Car API - Sistema de Gerenciamento de Aluguel de Carros
 
-## What is CodeIgniter?
+Sistema completo de gerenciamento de locadora de veículos desenvolvido com CodeIgniter 4, incluindo API REST e dashboard web com Bootstrap, jQuery e Ajax.
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.
-More information can be found at the [official site](https://codeigniter.com).
+## Funcionalidades
 
-This repository holds a composer-installable app starter.
-It has been built from the
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+- **Gestão de Clientes**: Cadastro com dados pessoais, CPF e CNH
+- **Gestão de Categorias**: Tipos de veículos com preços (diário, semanal, mensal)
+- **Gestão de Veículos**: Frota com controle de status (disponível, alugado, manutenção)
+- **Gestão de Aluguéis**: Reservas, retiradas, devoluções com cálculo automático de multas
+- **Dashboard**: Visão geral com estatísticas em tempo real
 
-More information about the plans for version 4 can be found in [CodeIgniter 4](https://forum.codeigniter.com/forumdisplay.php?fid=28) on the forums.
+---
 
-You can read the [user guide](https://codeigniter.com/user_guide/)
-corresponding to the latest version of the framework.
+## Setup com Docker (Recomendado)
 
-## Installation & updates
+**Pré-requisito**: [Docker](https://www.docker.com/products/docker-desktop/)
 
-`composer create-project codeigniter4/appstarter` then `composer update` whenever
-there is a new release of the framework.
+```bash
+# 1. Clone o repositório
+git clone https://github.com/MatheusAndreiczuk/rent-cars-ci4
+cd rent-car-api-ci4
 
-When updating, check the release notes to see if there are any changes you might need to apply
-to your `app` folder. The affected files can be copied or merged from
-`vendor/codeigniter4/framework/app`.
+# 2. Suba os containeres
+docker compose up -d --build
 
-## Setup
+# 3. Execute migrations e seeds
+docker compose exec app php spark migrate
+docker compose exec app php spark db:seed DatabaseSeeder
 
-Copy `env` to `.env` and tailor for your app, specifically the baseURL
-and any database settings.
+# 4. Acesse
+# App:        http://localhost:8080
+# phpMyAdmin: http://localhost:8888
+```
 
-## Important Change with index.php
+### Credenciais padrão do principal admin
+- **Email**: admin@locadora.com
+- **Senha**: admin123
 
-`index.php` is no longer in the root of the project! It has been moved inside the *public* folder,
-for better security and separation of components.
+### Parar containers
+```bash
+docker compose down         # Desce os containers
+docker compose down -v      # Desce e apaga o banco de dados
+```
 
-This means that you should configure your web server to "point" to your project's *public* folder, and
-not to the project root. A better practice would be to configure a virtual host to point there. A poor practice would be to point your web server to the project root and expect to enter *public/...*, as the rest of your logic and the
-framework are exposed.
+---
 
-**Please** read the user guide for a better explanation of how CI4 works!
+## Setup Local (Sem Docker)
 
-## Repository Management
+```bash
+# 1. Instale as dependências
+composer install
 
-We use GitHub issues, in our main repository, to track **BUGS** and to track approved **DEVELOPMENT** work packages.
-We use our [forum](http://forum.codeigniter.com) to provide SUPPORT and to discuss
-FEATURE REQUESTS.
+# 2. Configure o .env
+cp .env.example .env
 
-This repository is a "distribution" one, built by our release preparation script.
-Problems with it can be raised on our forum, or as issues in the main repository.
+# 3. Edite o .env com suas credenciais MySQL
 
-## Server Requirements
+# 4. Rode as migrations
+php spark migrate
 
-PHP version 8.2 or higher is required, with the following extensions installed:
+# 5. Rode os seeds
+php spark db:seed DatabaseSeeder
 
-- [intl](http://php.net/manual/en/intl.requirements.php)
-- [mbstring](http://php.net/manual/en/mbstring.installation.php)
+# 6. Inicie o servidor
+php spark serve
+```
 
-> [!WARNING]
-> - The end of life date for PHP 7.4 was November 28, 2022.
-> - The end of life date for PHP 8.0 was November 26, 2023.
-> - The end of life date for PHP 8.1 was December 31, 2025.
-> - If you are still using below PHP 8.2, you should upgrade immediately.
-> - The end of life date for PHP 8.2 will be December 31, 2026.
+Acesse: **http://localhost:8080**
 
-Additionally, make sure that the following extensions are enabled in your PHP:
+---
 
-- json (enabled by default - don't turn it off)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) if you plan to use MySQL
-- [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
+## Endpoints da API
+
+### Autenticação
+- `POST /login` - Fazer login
+
+### Usuários
+- `GET /users` - Listar todos (admin)
+- `GET /users/:id` - Buscar por ID
+- `POST /cadastro` - Registrar novo
+- `PUT /users/:id` - Atualizar
+- `DELETE /users/:id` - Deletar (admin)
+
+### Categorias
+- `GET /categories` - Listar todas
+- `GET /categories/:id` - Buscar por ID
+- `POST /categories` - Criar (admin)
+- `PUT /categories/:id` - Atualizar (admin)
+- `DELETE /categories/:id` - Deletar (admin)
+
+### Veículos
+- `GET /vehicles` - Listar todos
+- `GET /vehicles/:id` - Buscar por ID
+- `POST /vehicles` - Criar (admin)
+- `PUT /vehicles/:id` - Atualizar (admin)
+- `DELETE /vehicles/:id` - Deletar (admin)
+
+### Aluguéis
+- `GET /rentals` - Listar todos (admin)
+- `GET /rentals/:id` - Buscar por ID
+- `GET /rentals/my` - Meus aluguéis (cliente)
+- `POST /rentals` - Criar reserva
+- `PUT /rentals/:id/start` - Iniciar locação (admin)
+- `PUT /rentals/:id/finish` - Finalizar locação (admin)
+- `PUT /rentals/:id/cancel` - Cancelar reserva
+
+---
+
+## Stacks utilizadas
+
+- **Backend**: CodeIgniter 4 (PHP 8.2)
+- **Frontend**: Bootstrap 5, jQuery, Ajax
+- **Database**: MySQL 8
+- **Authentication**: JWT (Firebase/PHP-JWT)
+- **Docker**: Apache + PHP + MySQL
+
+---
+
+## Estrutura do Projeto
+
+```
+app/
+├── Controllers/      # Controladores da API
+├── Models/           # Models com validações
+├── Filters/          # Autenticação e autorização
+├── Config/           # Configurações e rotas
+└── Views/            # Dashboard web
+
+public/               # Document root (Apache)
+├── js/               # jQuery, JS e Ajax para construção das views
+```
+
+---
+
+## Notas Técnicas
+
+- Validações impedem conflitos de reservas
+- Cálculo automático de multas por atraso (valor diário x 2)
+- Veículos mudam de status automaticamente
+- JWT para proteção de endpoints
+
+---
+
+**Desenvolvido para aprendizado e aperfeiçoamento nas referidas stacks**
